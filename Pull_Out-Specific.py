@@ -29,6 +29,6 @@ def extract_links_from_folder(input_file, folder_name, output_file):
 
 if __name__ == '__main__':
     input_file = "D:/Documents/GitHub/Bookmarks-TO-Readme/bookmarks_5_1_23.html"
-    folder_name = 'Entertainment'
-    output_file = 'Entertainment.html'
+    folder_name = 'Alts'
+    output_file = 'Alts.html'
     extract_links_from_folder(input_file, folder_name, output_file)

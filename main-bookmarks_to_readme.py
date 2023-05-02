@@ -36,15 +36,17 @@ def extract_metadata(html_content: str) -> dict:
 
     # Extract description
     description = soup.find("meta", attrs={"name": "description"})
-    if description:
+    if description and "content" in description.attrs:
         metadata["description"] = description["content"]
 
     # Extract Open Graph image
     og_image = soup.find("meta", attrs={"property": "og:image"})
-    if og_image:
+    if og_image and "content" in og_image.attrs:
         metadata["image"] = og_image["content"]
 
     return metadata
+
+
 
 
 def extract_favicon_url(html_content: str) -> str:
