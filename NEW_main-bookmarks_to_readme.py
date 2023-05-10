@@ -2,9 +2,37 @@ import argparse
 import html2text
 import os
 import requests
+import tldextract
 from bs4 import BeautifulSoup
+from collections import defaultdict
 from typing import List
 from tqdm import tqdm
+from urllib.parse import urlsplit
+
+categories = {
+    "AI": ["openai","artificial intelligence","machine learning","deep learning", "AI Research", "AI Products", "AI Education", "AI News", "AI Communities", "AI Ethics", "NLP", "Computer Vision", "Robotics", "Game Playing", "Data Mining", "Fraud Detection", "Medical Diagnosis", "Financial Trading", "Content Moderation", "Customer Service", "Energy", "Manufacturing", "Security","Transportation","Weather Forecasting"], 
+    "Search Engines": ["google", "bing", "yahoo", "search engine"],
+    "Adult Content": ["porn", "adult", "xxx"],
+    "Programming": ["programming", "coding", "developer", "code", "software development", "web development", "mobile development", "frontend", "backend", "full-stack", "devops", "API", "frameworks", "libraries", "programming languages", "source control", "debugging", "testing"],
+    "SBC": ["raspberry pi", "arduino", "single board computer"],
+    "Entertainment": ["movies", "tv", "music", "streaming"],
+    "Computers": ["computer", "laptop", "hardware", "software"],
+    "Magazines": ["magazine", "journal", "periodical"],
+    "Other": [],
+    "Unknown": [],
+    "Shopping": ["shop", "store", "ecommerce", "buy", "purchase"],
+    # Add more categories and associated keywords or domain names here
+}
+
+def categorize_url(url: str, categories: dict) -> str:
+    main_url = tldextract.extract(url).domain  # Use tldextract to get the domain
+    for category, keywords in categories.items():
+        for keyword in keywords:
+            if keyword.lower() in main_url.lower():
+                return category
+    return "Uncategorized"
+
+
 
 def fetch_url_content(url: str) -> str:
     """Fetches the content of the given URL."""
@@ -65,38 +93,16 @@ def check_favicon_url(url: str) -> bool:
         pass
     return False
 
-
-
-def extract_urls_from_html(file_path: str) -> List[str]:
-    with open(file_path, "r", encoding="utf-8") as f:
-        html_content = f.read()
-
-    soup = BeautifulSoup(html_content, "lxml")
-    urls = [a["href"] for a in soup.find_all("a", href=True)]
-
-    return urls
-
 def create_readme_md(urls: List[str], output_dir: str):
     h2t = html2text.HTML2Text()
     h2t.ignore_links = True
     h2t.ignore_images = True
     error_list = []
 
-    entries = []
+    entries_by_category = defaultdict(list)
 
     for i, url in enumerate(tqdm(urls, desc="Processing URLs")):
-        #### print(f"Processing URL {i + 1}: {url}")
-
         try:
-            # Send a HEAD request and check the content type
-            head_response = requests.head(url, timeout=10)
-            content_type = head_response.headers.get('content-type', '')
-
-            # If the content type is not an HTML page, skip the URL
-            if not content_type.startswith('text/html'):
-                print(f"Skipping non-HTML URL: {url}")
-                continue
-
             content = fetch_url_content(url)
             metadata = extract_metadata(content)
             favicon_url = extract_favicon_url(content)
@@ -111,28 +117,38 @@ def create_readme_md(urls: List[str], output_dir: str):
             if "description" in metadata:
                 entry += f"{h2t.handle(metadata['description'])}\n\n"
 
-            entries.append((metadata.get('title', url), entry))
+            category = categorize_url(url, categories)
+
+            entries_by_category[category].append((metadata.get('title', url), entry))
 
         except requests.exceptions.RequestException as e:
             error_list.append(f"Error processing {url}: {e}")
-            print(f"Error processing {url}: {e}")
+#            print(f"Error processing {url}: {e}")
 
-    # The rest of the function remains unchanged
+    with open(os.path.join(output_dir, 'README.md'), 'w', encoding='utf-8') as f:
+        f.write("# My Bookmarks\n\n")
 
+        for category, entries in entries_by_category.items():
+            f.write(f"## {category}\n\n")
+            entries.sort()
+            for _, entry in entries:
+                f.write(entry)
+            f.write("\n")  # Add an extra line break to separate categories
 
-
-    entries.sort()
-
-    with open(os.path.join(output_dir, "README.md"), "w", encoding="utf-8") as f:
-        for _, entry in entries:
-            f.write(entry)
-            f.write("---\n\n")
-
-        # Write errors at the end of the file
         if error_list:
             f.write("## Errors\n\n")
+            f.write("The following URLs could not be processed due to errors:\n\n")
             for error in error_list:
                 f.write(f"- {error}\n")
+            f.write("\n")
+
+def extract_urls_from_html(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+    soup = BeautifulSoup(html_content, "html.parser")
+    urls = [a["href"] for a in soup.find_all("a", href=True)]
+    return urls
+
 def main():
     parser = argparse.ArgumentParser(
         description="Process HTML bookmarks file and generate README.md with metadata."
@@ -147,7 +163,7 @@ def main():
     urls = extract_urls_from_html(args.bookmarks_file)
 
     if urls:
-        create_readme_md(urls, script_dir)
+        create_readme_md(urls, script_dir)  # Pass script_dir instead of output_dir
     else:
         print(f"No URLs found in {args.bookmarks_file}")
 

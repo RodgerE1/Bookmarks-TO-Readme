@@ -28,7 +28,7 @@ def extract_links_from_folder(input_file, folder_name, output_file):
         print(f"An error occurred: {e}")
 
 if __name__ == '__main__':
-    input_file = "D:/Documents/GitHub/Bookmarks-TO-Readme/bookmarks_5_1_23.html"
-    folder_name = 'Alts'
-    output_file = 'Alts.html'
+    input_file = "D:/Documents/GitHub/Bookmarks-TO-Readme/bm-full.html"
+    folder_name = 'AI'
+    output_file = 'AI.html'
     extract_links_from_folder(input_file, folder_name, output_file)
